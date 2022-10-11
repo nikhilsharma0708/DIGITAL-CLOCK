@@ -1,0 +1,153 @@
+/////////////////////////////////////////////////////////DIGITAL CLOCK ////////////////////////////////////// 
+
+
+
+X= 5000H FOR HOUR_COUNT ;
+Y= 5001H FOR MINUTE_COUNT ;
+Z= 5002H FOR SECOND_COUNT ;
+
+
+INITIALIZE:MVI A,80H     // INITIALIZATION OF OUTPUT PORT 
+           OUT 43		     
+	     LXI SP, 3500H   // STACK POINTER IS INITIALIZED 
+           LXI H , 2100H            // TO INITIALIZE THE LOOKUP TABLE FOR ANODE 7-SEG  
+           MVI M ,3FH              //   LOOKUP TABLE  
+	     INX H
+           MVI M , 06H
+	     INX H
+	     MVI M , 5BH
+	     INX H
+	     MVI M , 4FH
+	     INX H
+	     MVI M , 66H
+	     INX H
+	     MVI M , 6DH
+	     INX H
+	     MVI M , 7DH
+	     INX H
+	     MVI M , 07H
+	     INX H
+	     MVI M , 7FH
+	     INX H
+	     MVI M , 67H 
+	     LXI H , 5000H // INITIALIZED  HL PAIR WITH 5000H  
+	     JMP START 
+
+START:    MVI M,00H      // INITIALLY HOUR IS ZERO
+  
+NEXTHOUR: INX H          // AFTER EVERY COMPLETION OF A HOUR, A MINUTE STARTS FROM ZERO
+          MVI M,00H
+
+NEXTMINUTE:INX H         // AFTER EVERY COMPLETION OF A MINUTE, THE SECONDS START FROM ZERO
+           MVI Z,00H
+
+NEXTSECOND:PUSH H        //TO SECURE THE LOCATIONS  
+           CALL SEC_DELAY // DELAY FOR 1 SEC 
+           POP H         
+           INR M      // AFTER EVERY SECOND INCREMENT SECOND 
+           MOV D,M    
+           CALL BCDS    // FOR OUTPUT OF SECONDS
+           MOV A,D   
+           CPI 3CH     //COMPARE WITH 60 (TO KNOW IF 1 MINUTE IS PASSED OR NOT )
+           JNZ NEXTSECOND
+           DCX H       // TO GET THE LOCATION OF THE MINUTES  
+           INR M       // ONE MINUTE HAS PASSED
+           MOV D,M          
+           CALL BCDM // FOR OUTPUT MINUTE
+           MOV A, D 
+           CPI 3CH   // COMPARE WITH 60 (TO KNOW IF 1 HOUR IS PASSED OR NOT )
+           JNZ NEXTMINUTE
+           DCX H     // TO GET THE LOCATION OF HOURS 
+           INR M
+           MOV D, M
+           CALL BCDH // FOR OUTPUT HOUR
+           MOV A, D 
+           CPI 18H  //24-HOUR CLOCK
+           JNZ NEXTHOUR
+           JMP START
+
+   
+Delay program ==> To make a delay of 1 sec when called
+
+SEC_DELAY:  MVI B,02H        ; 7T     Move value 02H to register D => Outer loop
+Outer_loop: LXI HL,FFFFH     ; 10T    Move value FFFFH (65535) to register pair BC => Inner loop
+Inner_loop: DCX H          ; 6T     Decrease value of BC pair (Inner loop)
+	    MOV A,H          ; 4T     Delay time: Move value of register B to Accumulator
+	    ORA L            ; 4T     Performs OR operation between Accumulator and regsiter C
+	    JNZ Inner_loop   ; 10/7T  If value of BC pair is still not zero,then go to Inner_loop,otherwise continue
+	    DCR B            ; 4T     If value of BC pair is zero,then decrese value of register D
+	    JNZ Outer_loop   ; 10/7T  If value of register D is not zero,then go to Outer_loop,otherwise continue
+	    RET		     ; 10T    Return from sub-routine => program control is transferred back to main program
+
+; Calculation: (7+2*(10+65535*(6+4+4+10)-3+4+10)-3+10)T = 3145736T
+; 1 T = 1/3*10^6 sec
+; So,3145736T = 1.04857 seconds,which is approximately 1 Sec
+
+
+// FOR SECOND DISPLAY  // THIS PROGRAM IS USED TO CONVERT A HEX TO DECIMAL 
+BCDS :MOV A ,D  
+	MVI C, 00H  //THIS IS FOR QUOTIENT
+JUMP1:JC DIP1    
+DEC1:SUI 0AH    //WE ARE SUBTRACTING 10 TO GET A HEX NUMBER TO DECIMAL 
+	INC C     // 
+	JMPJUMP1  //
+DIP1: MVI A, 01H  // THIS IS USED TO ACTIVATE THE FIRST "7 SEG" OF SECONDS  
+	OUT 81H     // TO B BECAUSE SWITCHES ARE AT B 
+      PUSH H 
+	CALL DISPLAY //OUTPUT THE FIRST 7-SEG OF THE SECONDS 
+	POP H
+	MVI A,02H    // THIS IS USED TO ACTIVATE THE SECOND "7 SEG" OF SECONDS 
+	OUT 81H
+	MOV A, C 
+	PUSH H 
+	CALL DISPLAY  //OUTPUT THE SECOND 7 -SEG  OF THE SECONDS
+	POP H
+	RET
+
+//   FOR MINUTE DISPLAY  WHICH IS SAME AS ABOVE 
+BCDM: MOV A ,D
+	MVI C, 00H  
+JUMP2:JC DIP2
+DEC2:SUI 0AH
+	INC C
+	JMPJUMP2
+DIP2: MVI A ,08H
+	OUT 81H
+	PUSH H 
+      CALL DISPLAY
+	POP H 
+	MVI A ,10H
+	OUT 81H
+	MOV A , C
+	PUSH H 
+	CALL DISPLAY 
+	POP H 
+	RET
+
+// FOR HOUR  SAME AS SECONDS 
+BCDH: MOV A, D
+	MVI C, 00H 
+JUMP3:JC DIP3
+DEC3: SUI 0AH
+	INC C
+	JMP JUMP3
+DIP3: MVI A,40H
+	OUT 81H
+	PUSH H 
+      CALL DISPLAY
+	POP H
+	MVI A,80H
+	OUT 81H
+	MOV A, C
+	PUSH H  
+	CALL DISPLAY
+	POP H  
+	RET
+
+//TO DISPLAY THE NUMBER ON 7SEG 
+DISPLAY1:LXI H, 2100H;  
+	 ADD L 
+	 MOV L, A 
+       MOV A, M
+	 OUT 80H 		
+	 RET

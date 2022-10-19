@@ -8,7 +8,7 @@ Z= 5002H FOR SECOND_COUNT ;
 
 
 INITIALIZE:MVI A,80H     // INITIALIZATION OF OUTPUT PORT 
-           OUT 43		     
+           OUT 83H		     
 	     LXI SP, 3500H   // STACK POINTER IS INITIALIZED 
            LXI H , 2100H            // TO INITIALIZE THE LOOKUP TABLE FOR ANODE 7-SEG  
            MVI M ,3FH              //   LOOKUP TABLE  
